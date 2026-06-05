@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ENVI Outbound MVP</title>
+    <style>
+      :root { color-scheme: light; --bg: #f6f7f9; --panel: #fff; --text: #17202a; --muted: #667085; --line: #d9dee7; --accent: #0f766e; --accent-dark: #0b5f59; --warn: #b45309; --hot: #b91c1c; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, Arial, sans-serif; background: var(--bg); color: var(--text); }
+      header { padding: 20px 28px 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+      h1 { margin: 0; font-size: 24px; letter-spacing: 0; }
+      .app-shell { display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding: 0 28px 32px; }
+      .sidebar { align-self: start; position: sticky; top: 12px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+      .sidebar-title { margin: 0 0 8px; color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+      .side-link { display: flex; align-items: center; min-height: 38px; padding: 0 10px; border-radius: 6px; color: var(--text); text-decoration: none; font-size: 14px; font-weight: 700; }
+      .side-link.active { background: var(--accent); color: #fff; }
+      main { min-width: 0; }
+      .metrics { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; margin: 12px 0 18px; }
+      .metric, .tools, table { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+      .metric { padding: 14px; }
+      .metric strong { display: block; font-size: 24px; margin-top: 4px; }
+      .muted { color: var(--muted); font-size: 12px; }
+      .tools { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+      .bulk-bar { margin-bottom: 18px; padding: 12px 14px; display: flex; align-items: end; justify-content: space-between; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+      .bulk-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+      .filters { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .filter-link { display: inline-flex; align-items: center; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); text-decoration: none; font-size: 13px; }
+      .filter-link.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 800; }
+      .advanced-filters { margin-bottom: 18px; padding: 14px; display: grid; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+      .advanced-filters form { display: grid; gap: 12px; align-items: stretch; }
+      .search-panel { padding: 18px; }
+      .search-heading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+      .search-heading h2 { margin: 0; font-size: 22px; letter-spacing: 0; }
+      .search-primary { display: grid; grid-template-columns: 1.2fr 0.8fr 1fr 0.7fr; gap: 10px; }
+      .search-primary input { height: 42px; font-size: 15px; }
+      .search-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+      .check-filter { min-height: 36px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); background: #fff; font-size: 13px; }
+      .check-filter input { width: 16px; height: 16px; padding: 0; }
+      .filter-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+      form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+      label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+      input, select, button, textarea { border-radius: 6px; border: 1px solid var(--line); padding: 0 10px; background: #fff; font: inherit; }
+      input, select, button { height: 36px; }
+      textarea { width: 100%; min-height: 220px; padding: 10px; resize: vertical; line-height: 1.45; }
+      button { background: var(--accent); color: #fff; border-color: var(--accent); cursor: pointer; font-weight: 700; }
+      button:hover { background: var(--accent-dark); }
+      button:disabled { cursor: wait; opacity: 0.7; }
+      button.secondary { background: #fff; color: var(--text); border-color: var(--line); }
+      button.secondary:hover { background: #eef2f6; }
+      button.ghost { background: transparent; color: var(--muted); border-color: transparent; }
+      button.ghost:hover { color: var(--text); background: #eef2f6; }
+      button.danger { background: #fff; color: var(--hot); border-color: #fecaca; }
+      button.danger:hover { background: #fee2e2; }
+      table { width: 100%; border-collapse: collapse; overflow: hidden; }
+      th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-size: 13px; }
+      th { background: #eef2f6; color: #344054; font-size: 12px; text-transform: uppercase; }
+      tr:last-child td { border-bottom: 0; }
+      .priority { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; color: #fff; font-weight: 800; }
+      .priority-A { background: var(--hot); }
+      .priority-B { background: var(--warn); }
+      .priority-C { background: var(--muted); }
+      .status-badge { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 999px; background: #eef2f6; color: #344054; font-size: 12px; font-weight: 800; }
+      .status-new { background: #e0f2fe; color: #075985; }
+      .status-drafted { background: #fef3c7; color: #92400e; }
+      .status-contacted { background: #dcfce7; color: #166534; }
+      .status-replied { background: #ede9fe; color: #5b21b6; }
+      .signals { max-width: 360px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+      .channel-form { flex-wrap: nowrap; }
+      .modal-backdrop { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; padding: 18px; background: rgba(15, 23, 42, 0.45); }
+      .modal-backdrop.open { display: flex; }
+      .modal { width: min(760px, 100%); max-height: calc(100vh - 36px); overflow: auto; background: var(--panel); border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 18px 48px rgba(15, 23, 42, 0.24); }
+      .modal-header, .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+      .modal-footer { border-top: 1px solid var(--line); border-bottom: 0; justify-content: flex-end; flex-wrap: wrap; }
+      .modal-body { display: grid; gap: 12px; padding: 16px; }
+      .modal-title { font-size: 18px; font-weight: 800; }
+      .subject-field { width: 100%; }
+      .bulk-results { display: grid; gap: 8px; max-height: 320px; overflow: auto; }
+      .bulk-result { padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: #f8fafc; }
+      .bulk-result strong { display: block; margin-bottom: 4px; }
+      .toast { position: fixed; right: 18px; bottom: 18px; z-index: 30; display: none; padding: 10px 12px; border-radius: 6px; background: #17202a; color: #fff; font-size: 13px; }
+      .toast.open { display: block; }
+      @media (max-width: 900px) {
+        .metrics, .tools { grid-template-columns: 1fr; }
+        .search-primary { grid-template-columns: 1fr; }
+        .app-shell { grid-template-columns: 1fr; padding: 0 16px 24px; }
+        .sidebar { position: static; }
+        table { display: block; overflow-x: auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>ENVI Outbound MVP</h1>
+        <div class="muted">Discovery, enrichment, scoring y drafts personalizados</div>
+      </div>
+    </header>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-title">Secciones</div>
+        <a class="side-link {% if current_screen == 'discover' %}active{% endif %}" href="/?page=discover">Buscar leads</a>
+        <a class="side-link {% if current_screen == 'leads' %}active{% endif %}" href="/?page=leads">Leads encontrados</a>
+      </aside>
+
+      <main>
+      <section class="metrics">
+        <div class="metric"><span class="muted">Leads</span><strong>{{ stats.total }}</strong></div>
+        <div class="metric"><span class="muted">Score promedio</span><strong>{{ stats.avg_score }}</strong></div>
+        <div class="metric"><span class="muted">Reply rate</span><strong>{{ stats.reply_rate }}%</strong></div>
+        <div class="metric"><span class="muted">Prioridades</span><strong>A {{ stats.by_priority.get('A', 0) }} / B {{ stats.by_priority.get('B', 0) }}</strong></div>
+      </section>
+
+      {% if request.query_params.get('last_found') %}
+      <section class="bulk-bar">
+        <div>
+          <strong>Ultima busqueda</strong>
+          <div class="muted">{{ request.query_params.get('last_found') }} encontrados · {{ request.query_params.get('last_matched') }} cumplen filtros</div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if current_screen == 'discover' %}
+      <section class="advanced-filters search-panel">
+        <form method="post" action="/discover">
+          <div class="search-heading">
+            <div>
+              <h2>Buscar leads nuevos</h2>
+              <div class="muted">Esto corre una busqueda nueva en Google Maps/SerpAPI. Los filtros ayudan a quedarte con leads mas utiles.</div>
+            </div>
+          </div>
+          <div class="search-primary">
+            <label>Industria o rubro
+              <input name="industry" value="{{ lead_filters.industry or 'ferreteria' }}" placeholder="ferreteria, pet shop, repuestera">
+            </label>
+            <label>Pais
+              <input name="country" value="Argentina">
+            </label>
+            <label>Ciudad
+              <input name="city" value="{{ lead_filters.city or 'Cordoba' }}" placeholder="Cordoba">
+            </label>
+            <label>Cantidad de leads
+              <input name="limit" type="number" value="20" min="1" max="100">
+            </label>
+          </div>
+          <div>
+            <strong>Filtros para no perder tiempo</strong>
+            <div class="muted">Web/telefono pueden venir de Maps. Ecommerce y multisucursal se validan despues de enriquecer cada lead.</div>
+          </div>
+          <div class="filter-grid">
+            <label class="check-filter"><input type="checkbox" name="has_web" value="true" {% if lead_filters.has_web %}checked{% endif %}> Tiene web</label>
+            <label class="check-filter"><input type="checkbox" name="has_whatsapp" value="true" {% if lead_filters.has_whatsapp %}checked{% endif %}> Tiene WhatsApp</label>
+            <label class="check-filter"><input type="checkbox" name="has_email" value="true" {% if lead_filters.has_email %}checked{% endif %}> Tiene email</label>
+            <label class="check-filter"><input type="checkbox" name="has_phone" value="true" {% if lead_filters.has_phone %}checked{% endif %}> Tiene telefono</label>
+            <label class="check-filter"><input type="checkbox" name="has_instagram" value="true" {% if lead_filters.has_instagram %}checked{% endif %}> Tiene Instagram</label>
+            <label class="check-filter"><input type="checkbox" name="has_ecommerce" value="true" {% if lead_filters.has_ecommerce %}checked{% endif %}> Ecommerce detectado</label>
+            <label class="check-filter"><input type="checkbox" name="has_multibranch" value="true" {% if lead_filters.has_multibranch %}checked{% endif %}> Posible multisucursal</label>
+          </div>
+          <div class="filter-fields">
+            <label>Prioridad
+              <select name="priority">
+                <option value="">Todas</option>
+                <option value="A" {% if lead_filters.priority == 'A' %}selected{% endif %}>A</option>
+                <option value="B" {% if lead_filters.priority == 'B' %}selected{% endif %}>B</option>
+                <option value="C" {% if lead_filters.priority == 'C' %}selected{% endif %}>C</option>
+              </select>
+            </label>
+            <div class="search-actions">
+              <button type="submit">Buscar leads nuevos</button>
+              <span class="muted">Despues de buscar vas a ver los resultados en Leads encontrados.</span>
+            </div>
+            <a class="filter-link" href="/?page=discover">Limpiar</a>
+          </div>
+        </form>
+      </section>
+      {% else %}
+
+      <section class="tools">
+        <form method="post" action="/import-csv" enctype="multipart/form-data">
+          <label>CSV leads<input name="file" type="file" accept=".csv"></label>
+          <button type="submit">Importar</button>
+        </form>
+      </section>
+
+      <nav class="filters" aria-label="Filtros de leads">
+        <span class="muted">Ver:</span>
+        <a class="filter-link {% if current_view == 'all' %}active{% endif %}" href="/?page=leads">Todos {{ stats.total }}</a>
+        <a class="filter-link {% if current_view == 'new' %}active{% endif %}" href="/?page=leads&view=new">Sin draft {{ stats.by_status.get('new', 0) }}</a>
+        <a class="filter-link {% if current_view == 'drafted' %}active{% endif %}" href="/?page=leads&view=drafted">Con draft {{ stats.by_status.get('drafted', 0) }}</a>
+        <a class="filter-link {% if current_view == 'contacted' %}active{% endif %}" href="/?page=leads&view=contacted">Contactados {{ stats.by_status.get('contacted', 0) }}</a>
+        <a class="filter-link {% if current_view == 'replied' %}active{% endif %}" href="/?page=leads&view=replied">Respondieron {{ stats.by_status.get('replied', 0) }}</a>
+      </nav>
+
+      <form class="advanced-filters" method="get" action="/">
+        <input type="hidden" name="page" value="leads">
+        <input type="hidden" name="view" value="{{ current_view }}">
+        <div>
+          <strong>Filtros especificos</strong>
+          <div class="muted">Combinables. Ejemplo: tiene web + WhatsApp + prioridad A.</div>
+        </div>
+        <div class="filter-grid">
+          <label class="check-filter"><input type="checkbox" name="has_web" value="true" {% if lead_filters.has_web %}checked{% endif %}> Tiene web</label>
+          <label class="check-filter"><input type="checkbox" name="has_whatsapp" value="true" {% if lead_filters.has_whatsapp %}checked{% endif %}> Tiene WhatsApp</label>
+          <label class="check-filter"><input type="checkbox" name="has_email" value="true" {% if lead_filters.has_email %}checked{% endif %}> Tiene email</label>
+          <label class="check-filter"><input type="checkbox" name="has_phone" value="true" {% if lead_filters.has_phone %}checked{% endif %}> Tiene telefono</label>
+          <label class="check-filter"><input type="checkbox" name="has_instagram" value="true" {% if lead_filters.has_instagram %}checked{% endif %}> Tiene Instagram</label>
+          <label class="check-filter"><input type="checkbox" name="has_ecommerce" value="true" {% if lead_filters.has_ecommerce %}checked{% endif %}> Ecommerce detectado</label>
+          <label class="check-filter"><input type="checkbox" name="has_multibranch" value="true" {% if lead_filters.has_multibranch %}checked{% endif %}> Posible multisucursal</label>
+        </div>
+        <div class="filter-fields">
+          <label>Prioridad
+            <select name="priority">
+              <option value="">Todas</option>
+              <option value="A" {% if lead_filters.priority == 'A' %}selected{% endif %}>A</option>
+              <option value="B" {% if lead_filters.priority == 'B' %}selected{% endif %}>B</option>
+              <option value="C" {% if lead_filters.priority == 'C' %}selected{% endif %}>C</option>
+            </select>
+          </label>
+          <label>Ciudad<input name="city" value="{{ lead_filters.city }}" placeholder="Cordoba"></label>
+          <label>Industria<input name="industry" value="{{ lead_filters.industry }}" placeholder="ferreteria"></label>
+          <button type="submit">Aplicar filtros</button>
+          <a class="filter-link" href="/?page=leads&view={{ current_view }}">Limpiar</a>
+        </div>
+      </form>
+
+      <section class="bulk-bar">
+        <div>
+          <strong>Campania rapida</strong>
+          <div id="selectedCount" class="muted">0 leads seleccionados</div>
+        </div>
+        <form id="bulkDraftForm" class="bulk-controls">
+          <label>Canal
+            <select name="channel">
+              <option>email</option>
+              <option>whatsapp</option>
+              <option>instagram</option>
+              <option>linkedin</option>
+            </select>
+          </label>
+          <label>Paso
+            <select name="step">
+              <option value="initial">inicial</option>
+              <option value="follow_up_1">FU1</option>
+              <option value="follow_up_2">FU2</option>
+              <option value="breakup">cierre</option>
+            </select>
+          </label>
+          <button type="submit">Crear drafts</button>
+          <button id="bulkDelete" class="danger" type="button">Eliminar seleccionados</button>
+        </form>
+      </section>
+
+      <table>
+        <thead>
+          <tr>
+            <th><input id="selectAllLeads" type="checkbox" aria-label="Seleccionar todos"></th>
+            <th>Lead</th>
+            <th>Score</th>
+            <th>Estado</th>
+            <th>Industria/Ciudad</th>
+            <th>Canales</th>
+            <th>Senales</th>
+            <th>Draft</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lead in leads %}
+          <tr>
+            <td><input class="lead-check" type="checkbox" value="{{ lead.id }}" aria-label="Seleccionar {{ lead.business_name }}"></td>
+            <td>
+              <strong>{{ lead.business_name }}</strong><br>
+              <span class="muted">{{ lead.website or lead.source }}</span>
+            </td>
+            <td><span class="priority priority-{{ lead.priority }}">{{ lead.priority }}</span> {{ lead.fit_score }}</td>
+            <td><span class="status-badge status-{{ lead.status }}">{{ lead.status }}</span></td>
+            <td>{{ lead.industry or '-' }}<br><span class="muted">{{ lead.city or '-' }}</span></td>
+            <td>
+              {{ lead.email or '' }}<br>
+              <span class="muted">{{ lead.phone or lead.whatsapp or lead.instagram or '' }}</span>
+            </td>
+            <td class="signals">{{ lead.signals_json }}</td>
+            <td>
+              <form class="channel-form js-draft-form" method="post" action="/api/outreach">
+                <input type="hidden" name="lead_id" value="{{ lead.id }}">
+                <select name="channel">
+                  <option>email</option>
+                  <option>whatsapp</option>
+                  <option>instagram</option>
+                  <option>linkedin</option>
+                </select>
+                <select name="step">
+                  <option value="initial">inicial</option>
+                  <option value="follow_up_1">FU1</option>
+                  <option value="follow_up_2">FU2</option>
+                  <option value="breakup">cierre</option>
+                </select>
+                <button type="submit">Crear</button>
+              </form>
+            </td>
+            <td>
+              <button class="danger js-delete-lead" type="button" data-lead-id="{{ lead.id }}" data-lead-name="{{ lead.business_name }}">Eliminar</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      </main>
+    </div>
+
+    <div id="draftModal" class="modal-backdrop" aria-hidden="true">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="draftTitle">
+        <div class="modal-header">
+          <div>
+            <div id="draftTitle" class="modal-title">Draft</div>
+            <div id="draftMeta" class="muted"></div>
+          </div>
+          <button id="closeDraft" class="ghost" type="button">Cerrar</button>
+        </div>
+        <div class="modal-body">
+          <input id="draftEventId" type="hidden">
+          <label id="subjectWrap">Asunto
+            <input id="draftSubject" class="subject-field" type="text">
+          </label>
+          <label>Mensaje
+            <textarea id="draftBody"></textarea>
+          </label>
+          <div id="draftStatus" class="muted"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="copyDraft" class="secondary" type="button">Copiar</button>
+          <button id="saveDraft" class="secondary" type="button">Guardar cambios</button>
+          <button id="markSent" type="button">Marcar como enviado</button>
+        </div>
+      </section>
+    </div>
+    <div id="bulkModal" class="modal-backdrop" aria-hidden="true">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="bulkTitle">
+        <div class="modal-header">
+          <div>
+            <div id="bulkTitle" class="modal-title">Drafts creados</div>
+            <div id="bulkMeta" class="muted"></div>
+          </div>
+          <button id="closeBulk" class="ghost" type="button">Cerrar</button>
+        </div>
+        <div class="modal-body">
+          <div class="muted">Se guardaron como drafts. Podes abrir cada lead y revisar antes de enviar.</div>
+          <div id="bulkResults" class="bulk-results"></div>
+        </div>
+      </section>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <script>
+      const modal = document.getElementById('draftModal');
+      const bulkModal = document.getElementById('bulkModal');
+      const toast = document.getElementById('toast');
+      const eventIdInput = document.getElementById('draftEventId');
+      const subjectInput = document.getElementById('draftSubject');
+      const subjectWrap = document.getElementById('subjectWrap');
+      const bodyInput = document.getElementById('draftBody');
+      const draftTitle = document.getElementById('draftTitle');
+      const draftMeta = document.getElementById('draftMeta');
+      const draftStatus = document.getElementById('draftStatus');
+      const selectedCount = document.getElementById('selectedCount');
+      const bulkResults = document.getElementById('bulkResults');
+      const bulkMeta = document.getElementById('bulkMeta');
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('open');
+        window.setTimeout(() => toast.classList.remove('open'), 2200);
+      }
+
+      function openDraft(data) {
+        eventIdInput.value = data.event_id;
+        subjectInput.value = data.subject || '';
+        bodyInput.value = data.body || '';
+        draftTitle.textContent = `Draft para ${data.lead_name || 'lead'}`;
+        draftMeta.textContent = `${data.channel} - ${data.step}`;
+        draftStatus.textContent = `Estado: ${data.status || 'draft'}`;
+        subjectWrap.style.display = data.channel === 'email' ? 'grid' : 'none';
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        bodyInput.focus();
+      }
+
+      function closeDraft() {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+
+      function selectedLeadIds() {
+        return Array.from(document.querySelectorAll('.lead-check:checked')).map((input) => input.value);
+      }
+
+      function updateSelectedCount() {
+        const count = selectedLeadIds().length;
+        selectedCount.textContent = `${count} leads seleccionados`;
+      }
+
+      function openBulkResult(data) {
+        bulkMeta.textContent = `${data.created} drafts creados`;
+        bulkResults.innerHTML = '';
+        data.drafts.forEach((draft) => {
+          const item = document.createElement('div');
+          item.className = 'bulk-result';
+          const preview = (draft.body || '').replace(/\s+/g, ' ').slice(0, 180);
+          item.innerHTML = `<strong>${draft.lead_name || 'Lead'} · ${draft.channel}</strong><span class="muted">${preview}</span>`;
+          bulkResults.appendChild(item);
+        });
+        if (!data.drafts.length) {
+          bulkResults.innerHTML = '<div class="muted">No se crearon drafts.</div>';
+        }
+        bulkModal.classList.add('open');
+        bulkModal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeBulk() {
+        bulkModal.classList.remove('open');
+        bulkModal.setAttribute('aria-hidden', 'true');
+      }
+
+      function paramsFromForm(form) {
+        const params = new URLSearchParams();
+        form.querySelectorAll('input, select, textarea').forEach((field) => {
+          if (field.name && !field.disabled) params.append(field.name, field.value);
+        });
+        return params;
+      }
+
+      async function postParams(url, params) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: params,
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || 'Request failed');
+        }
+        return response.json();
+      }
+
+      document.querySelectorAll('.js-draft-form').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const button = form.querySelector('button[type="submit"]');
+          const previous = button.textContent;
+          button.disabled = true;
+          button.textContent = 'Creando...';
+          try {
+            const data = await postParams(form.action, paramsFromForm(form));
+            openDraft(data);
+          } catch (error) {
+            showToast('No se pudo crear el draft');
+          } finally {
+            button.disabled = false;
+            button.textContent = previous;
+          }
+        });
+      });
+
+      document.querySelectorAll('.lead-check').forEach((input) => {
+        input.addEventListener('change', updateSelectedCount);
+      });
+      document.getElementById('selectAllLeads').addEventListener('change', (event) => {
+        document.querySelectorAll('.lead-check').forEach((input) => {
+          input.checked = event.target.checked;
+        });
+        updateSelectedCount();
+      });
+
+      document.getElementById('bulkDraftForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const ids = selectedLeadIds();
+        if (!ids.length) {
+          showToast('Selecciona al menos un lead');
+          return;
+        }
+        const form = event.currentTarget;
+        const button = form.querySelector('button[type="submit"]');
+        const previous = button.textContent;
+        button.disabled = true;
+        button.textContent = 'Creando...';
+        const params = paramsFromForm(form);
+        params.append('lead_ids', ids.join(','));
+        try {
+          const data = await postParams('/api/outreach/bulk', params);
+          openBulkResult(data);
+          showToast(`${data.created} drafts creados`);
+        } catch (error) {
+          showToast('No se pudieron crear drafts');
+        } finally {
+          button.disabled = false;
+          button.textContent = previous;
+        }
+      });
+
+      document.querySelectorAll('.js-delete-lead').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const leadId = button.dataset.leadId;
+          const leadName = button.dataset.leadName || 'este lead';
+          if (!confirm(`Eliminar ${leadName}? Tambien se borran sus drafts.`)) return;
+          button.disabled = true;
+          try {
+            await postParams(`/api/leads/${leadId}/delete`, new URLSearchParams());
+            button.closest('tr').remove();
+            updateSelectedCount();
+            showToast('Lead eliminado');
+          } catch (error) {
+            button.disabled = false;
+            showToast('No se pudo eliminar');
+          }
+        });
+      });
+
+      document.getElementById('bulkDelete').addEventListener('click', async () => {
+        const ids = selectedLeadIds();
+        if (!ids.length) {
+          showToast('Selecciona al menos un lead');
+          return;
+        }
+        if (!confirm(`Eliminar ${ids.length} leads seleccionados? Tambien se borran sus drafts.`)) return;
+        const params = new URLSearchParams();
+        params.append('lead_ids', ids.join(','));
+        try {
+          const data = await postParams('/api/leads/delete-bulk', params);
+          document.querySelectorAll('.lead-check:checked').forEach((input) => input.closest('tr').remove());
+          updateSelectedCount();
+          showToast(`${data.deleted} leads eliminados`);
+        } catch (error) {
+          showToast('No se pudieron eliminar');
+        }
+      });
+
+      document.getElementById('closeDraft').addEventListener('click', closeDraft);
+      document.getElementById('closeBulk').addEventListener('click', closeBulk);
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeDraft();
+      });
+      bulkModal.addEventListener('click', (event) => {
+        if (event.target === bulkModal) closeBulk();
+      });
+
+      document.getElementById('copyDraft').addEventListener('click', async () => {
+        const subject = subjectInput.value.trim();
+        const body = bodyInput.value.trim();
+        const text = subject ? `Asunto: ${subject}\n\n${body}` : body;
+        await navigator.clipboard.writeText(text);
+        showToast('Draft copiado');
+      });
+
+      document.getElementById('saveDraft').addEventListener('click', async () => {
+        const params = new URLSearchParams();
+        params.append('subject', subjectInput.value);
+        params.append('body', bodyInput.value);
+        try {
+          const data = await postParams(`/api/outreach/${eventIdInput.value}`, params);
+          draftStatus.textContent = `Estado: ${data.status}`;
+          showToast('Cambios guardados');
+        } catch (error) {
+          showToast('No se pudo guardar');
+        }
+      });
+
+      document.getElementById('markSent').addEventListener('click', async () => {
+        try {
+          const data = await postParams(`/api/outreach/${eventIdInput.value}/sent`, new URLSearchParams());
+          draftStatus.textContent = `Estado: ${data.status}`;
+          showToast('Marcado como enviado');
+        } catch (error) {
+          showToast('No se pudo marcar enviado');
+        }
+      });
+    </script>
+  </body>
+</html>
