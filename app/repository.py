@@ -42,6 +42,23 @@ def upsert_lead(db: Session, data: LeadIn | dict) -> Lead:
     return lead
 
 
+def find_existing_lead(db: Session, data: LeadIn | dict) -> Lead | None:
+    payload = data.model_dump() if hasattr(data, "model_dump") else dict(data)
+    domain = normalize_domain(payload.get("website"))
+    email = normalize_email(payload.get("email"))
+    phone = normalize_phone(payload.get("phone") or payload.get("whatsapp"))
+    clauses = []
+    if domain:
+        clauses.append(Lead.normalized_domain == domain)
+    if email:
+        clauses.append(Lead.normalized_email == email)
+    if phone:
+        clauses.append(Lead.normalized_phone == phone)
+    if not clauses:
+        return None
+    return db.execute(select(Lead).where(or_(*clauses))).scalar_one_or_none()
+
+
 def list_leads(db: Session, limit: int = 100, status: str | None = None, filters: dict | None = None) -> list[Lead]:
     stmt = select(Lead)
     if status:

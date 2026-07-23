@@ -65,6 +65,43 @@ Integracion sugerida:
 - Registrar `provider_message_id`.
 - Escuchar webhooks de respuesta y actualizar estado.
 
+### Templates recomendados para ENVI
+
+Los drafts de WhatsApp del dashboard estan pensados para apuntar a templates aprobados. Crear estos nombres en WhatsApp Manager o en el proveedor:
+
+`envi_diagnostico_inicial_v1`
+
+```text
+Hola {{1}}, soy {{2}} de {{3}}. Vi el contacto de {{1}} en Google Maps y queria hacerte una consulta puntual. En {{3}}, un sistema de gestion para comercios, ayudamos a ordenar stock, ventas y facturacion. Por lo que vimos, hoy manejan {{4}}. Lo tienen centralizado en un sistema o lo manejan separado? Si no corresponde, respondeme NO y no te escribo mas.
+```
+
+Variables:
+
+- `{{1}}`: nombre del comercio
+- `{{2}}`: nombre del vendedor
+- `{{3}}`: ENVI
+- `{{4}}`: senal detectada, por ejemplo `venta online` o `catalogo o stock amplio`
+
+`envi_diagnostico_followup_1_v1`
+
+```text
+Hola {{1}}, soy {{2}} de {{3}}. Te escribo de nuevo porque en comercios con {{4}} suele pasar que stock, ventas y facturacion quedan separados. Si no corresponde, respondeme NO y no te escribo mas.
+```
+
+`envi_diagnostico_followup_2_v1`
+
+```text
+Hola {{1}}, ultima consulta rapida sobre {{2}}: cuando entra una venta por mostrador o WhatsApp, el stock se descuenta automaticamente o alguien lo carga despues? Si no corresponde, respondeme NO y no te escribo mas.
+```
+
+`envi_diagnostico_cierre_v1`
+
+```text
+Cierro por aca para no insistir, {{1}}. Si mas adelante quieren ordenar stock, ventas y facturacion con {{2}}, me escribis y te paso una demo corta. Respondeme NO si preferis que no te contactemos mas.
+```
+
+Categoria probable: marketing. Usar ejemplos reales al enviarlos a aprobacion.
+
 ## Instagram y LinkedIn
 
 Para el MVP conviene semi-manual:
@@ -110,3 +147,64 @@ El dashboard deberia mostrar:
 - Copiar.
 - Marcar enviado manualmente.
 - Enviar por proveedor cuando este configurado.
+
+## Integracion MVP implementada
+
+El MVP ya tiene un sender para WhatsApp via Chatwoot en `app/channels/chatwoot.py`.
+
+Por seguridad corre en dry-run por defecto:
+
+```env
+CHATWOOT_DRY_RUN=true
+```
+
+En dry-run el dashboard arma el payload completo pero no envia el mensaje.
+
+Para envio real configurar:
+
+```env
+CHATWOOT_DRY_RUN=false
+CHATWOOT_BASE_URL=https://tu-chatwoot.com
+CHATWOOT_ACCOUNT_ID=1
+CHATWOOT_API_ACCESS_TOKEN=token_de_usuario_o_admin
+CHATWOOT_INBOX_IDENTIFIER=identificador_del_inbox_whatsapp
+```
+
+Flujo:
+
+1. Crear draft con canal `whatsapp`.
+2. El draft debe empezar con `WHATSAPP_TEMPLATE_DRAFT`.
+3. El dashboard muestra boton `Enviar WhatsApp`.
+4. El backend parsea template, language y variables.
+5. Crea/contacta el contacto en Chatwoot.
+6. Crea conversacion.
+7. Crea mensaje con `template_params`.
+
+Payload de mensaje esperado:
+
+```json
+{
+  "content": "preview renderizado",
+  "message_type": "outgoing",
+  "private": false,
+  "template_params": {
+    "name": "envi_diagnostico_inicial_v1",
+    "category": "MARKETING",
+    "language": "es_AR",
+    "processed_params": {
+      "1": "Ferreteria Demo",
+      "2": "Joaquin",
+      "3": "ENVI",
+      "4": "stock, ventas y facturacion"
+    }
+  }
+}
+```
+
+Antes de apagar dry-run, confirmar en Chatwoot:
+
+- El inbox es WhatsApp oficial.
+- Los templates existen y estan aprobados.
+- El `language` coincide con el aprobado.
+- El orden de variables coincide con Meta.
+- El token tiene permisos para crear contactos, conversaciones y mensajes.

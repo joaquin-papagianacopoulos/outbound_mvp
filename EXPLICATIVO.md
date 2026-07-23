@@ -32,9 +32,6 @@ Porque combinar local físico + online suele generar problemas de stock y gesti�
 +2 si parece tener varias sucursales
 Porque una operación multisucursal necesita más control.
 
-+1 si aparece MercadoLibre
-Porque vender en otro canal agrega complejidad.
-
 +2 si hay señales de stock complejo
 Por ejemplo frases como “consultar stock”, “catálogo”, “sin stock”, “stock disponible”.
 

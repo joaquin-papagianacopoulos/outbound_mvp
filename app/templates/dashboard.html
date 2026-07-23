@@ -24,6 +24,10 @@
       .tools { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
       .bulk-bar { margin-bottom: 18px; padding: 12px 14px; display: flex; align-items: end; justify-content: space-between; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
       .bulk-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+      .campaign-panel { margin-bottom: 18px; padding: 16px; display: grid; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+      .campaign-steps { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; }
+      .campaign-step { padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: #f8fafc; }
+      .campaign-step strong { display: block; margin-bottom: 4px; font-size: 13px; }
       .filters { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
       .filter-link { display: inline-flex; align-items: center; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); text-decoration: none; font-size: 13px; }
       .filter-link.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 800; }
@@ -35,6 +39,7 @@
       .search-primary { display: grid; grid-template-columns: 1.2fr 0.8fr 1fr 0.7fr; gap: 10px; }
       .search-primary input { height: 42px; font-size: 15px; }
       .search-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .credit-note { padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: #f8fafc; color: var(--muted); font-size: 13px; }
       .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
       .check-filter { min-height: 36px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); background: #fff; font-size: 13px; }
       .check-filter input { width: 16px; height: 16px; padding: 0; }
@@ -44,7 +49,7 @@
       input, select, button, textarea { border-radius: 6px; border: 1px solid var(--line); padding: 0 10px; background: #fff; font: inherit; }
       input, select, button { height: 36px; }
       textarea { width: 100%; min-height: 220px; padding: 10px; resize: vertical; line-height: 1.45; }
-      button { background: var(--accent); color: #fff; border-color: var(--accent); cursor: pointer; font-weight: 700; }
+      button { display: inline-flex; align-items: center; justify-content: center; background: var(--accent); color: #fff; border-color: var(--accent); cursor: pointer; font-weight: 700; white-space: nowrap; }
       button:hover { background: var(--accent-dark); }
       button:disabled { cursor: wait; opacity: 0.7; }
       button.secondary { background: #fff; color: var(--text); border-color: var(--line); }
@@ -76,6 +81,7 @@
       .modal-body { display: grid; gap: 12px; padding: 16px; }
       .modal-title { font-size: 18px; font-weight: 800; }
       .subject-field { width: 100%; }
+      .template-note { display: none; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: #f8fafc; color: var(--muted); font-size: 13px; }
       .bulk-results { display: grid; gap: 8px; max-height: 320px; overflow: auto; }
       .bulk-result { padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: #f8fafc; }
       .bulk-result strong { display: block; margin-bottom: 4px; }
@@ -83,6 +89,7 @@
       .toast.open { display: block; }
       @media (max-width: 900px) {
         .metrics, .tools { grid-template-columns: 1fr; }
+        .campaign-steps { grid-template-columns: 1fr; }
         .search-primary { grid-template-columns: 1fr; }
         .app-shell { grid-template-columns: 1fr; padding: 0 16px 24px; }
         .sidebar { position: static; }
@@ -102,6 +109,7 @@
         <div class="sidebar-title">Secciones</div>
         <a class="side-link {% if current_screen == 'discover' %}active{% endif %}" href="/?page=discover">Buscar leads</a>
         <a class="side-link {% if current_screen == 'leads' %}active{% endif %}" href="/?page=leads">Leads encontrados</a>
+        <a class="side-link {% if current_screen == 'campaign' %}active{% endif %}" href="/?page=campaign">Campania de prueba</a>
       </aside>
 
       <main>
@@ -116,7 +124,12 @@
       <section class="bulk-bar">
         <div>
           <strong>Ultima busqueda</strong>
-          <div class="muted">{{ request.query_params.get('last_found') }} encontrados · {{ request.query_params.get('last_matched') }} cumplen filtros</div>
+          <div class="muted">
+            {{ request.query_params.get('last_found') }} encontrados ·
+            {{ request.query_params.get('last_matched') }} cumplen filtros ·
+            {{ request.query_params.get('last_saved') or request.query_params.get('last_matched') }} guardados ·
+            {{ request.query_params.get('last_credits') or '?' }} creditos SerpAPI usados aprox.
+          </div>
         </div>
       </section>
       {% endif %}
@@ -141,8 +154,11 @@
               <input name="city" value="{{ lead_filters.city or 'Cordoba' }}" placeholder="Cordoba">
             </label>
             <label>Cantidad de leads
-              <input name="limit" type="number" value="20" min="1" max="100">
+              <input id="discoverLimit" name="limit" type="number" value="20" min="1" max="120">
             </label>
+          </div>
+          <div class="credit-note">
+            Costo estimado: <strong id="creditEstimate">1</strong> credito(s) SerpAPI. Cada pagina de Google Maps trae aprox. 20 resultados. Pedir mas de 20 puede consumir mas creditos.
           </div>
           <div>
             <strong>Filtros para no perder tiempo</strong>
@@ -176,24 +192,34 @@
       </section>
       {% else %}
 
-      <section class="tools">
-        <form method="post" action="/import-csv" enctype="multipart/form-data">
-          <label>CSV leads<input name="file" type="file" accept=".csv"></label>
-          <button type="submit">Importar</button>
-        </form>
+      {% if current_screen == 'campaign' %}
+      <section class="campaign-panel">
+        <div>
+          <strong>Campania de prueba manual/asistida</strong>
+          <div class="muted">Usala mientras WhatsApp API no esta activo. La idea es validar mensajes y respuesta real antes de automatizar envios.</div>
+        </div>
+        <div class="campaign-steps">
+          <div class="campaign-step"><strong>1. Filtrar</strong><span class="muted">Por defecto muestra prioridad A con WhatsApp.</span></div>
+          <div class="campaign-step"><strong>2. Crear drafts</strong><span class="muted">Selecciona leads y crea mensajes en lote.</span></div>
+          <div class="campaign-step"><strong>3. Enviar manual</strong><span class="muted">Copia el mensaje y envialo desde WhatsApp Web.</span></div>
+          <div class="campaign-step"><strong>4. Registrar</strong><span class="muted">Marca enviado, respondio, no interesado o no corresponde.</span></div>
+        </div>
       </section>
+      {% endif %}
 
       <nav class="filters" aria-label="Filtros de leads">
         <span class="muted">Ver:</span>
-        <a class="filter-link {% if current_view == 'all' %}active{% endif %}" href="/?page=leads">Todos {{ stats.total }}</a>
-        <a class="filter-link {% if current_view == 'new' %}active{% endif %}" href="/?page=leads&view=new">Sin draft {{ stats.by_status.get('new', 0) }}</a>
-        <a class="filter-link {% if current_view == 'drafted' %}active{% endif %}" href="/?page=leads&view=drafted">Con draft {{ stats.by_status.get('drafted', 0) }}</a>
-        <a class="filter-link {% if current_view == 'contacted' %}active{% endif %}" href="/?page=leads&view=contacted">Contactados {{ stats.by_status.get('contacted', 0) }}</a>
-        <a class="filter-link {% if current_view == 'replied' %}active{% endif %}" href="/?page=leads&view=replied">Respondieron {{ stats.by_status.get('replied', 0) }}</a>
+        <a class="filter-link {% if current_view == 'all' %}active{% endif %}" href="/?page={{ current_screen }}">Todos {{ stats.total }}</a>
+        <a class="filter-link {% if current_view == 'new' %}active{% endif %}" href="/?page={{ current_screen }}&view=new">Sin draft {{ stats.by_status.get('new', 0) }}</a>
+        <a class="filter-link {% if current_view == 'drafted' %}active{% endif %}" href="/?page={{ current_screen }}&view=drafted">Con draft {{ stats.by_status.get('drafted', 0) }}</a>
+        <a class="filter-link {% if current_view == 'contacted' %}active{% endif %}" href="/?page={{ current_screen }}&view=contacted">Contactados {{ stats.by_status.get('contacted', 0) }}</a>
+        <a class="filter-link {% if current_view == 'replied' %}active{% endif %}" href="/?page={{ current_screen }}&view=replied">Respondieron {{ stats.by_status.get('replied', 0) }}</a>
+        <a class="filter-link {% if current_view == 'not_interested' %}active{% endif %}" href="/?page={{ current_screen }}&view=not_interested">No interesados {{ stats.by_status.get('not_interested', 0) }}</a>
+        <a class="filter-link {% if current_view == 'not_fit' %}active{% endif %}" href="/?page={{ current_screen }}&view=not_fit">No corresponde {{ stats.by_status.get('not_fit', 0) }}</a>
       </nav>
 
       <form class="advanced-filters" method="get" action="/">
-        <input type="hidden" name="page" value="leads">
+        <input type="hidden" name="page" value="{{ current_screen }}">
         <input type="hidden" name="view" value="{{ current_view }}">
         <div>
           <strong>Filtros especificos</strong>
@@ -220,13 +246,13 @@
           <label>Ciudad<input name="city" value="{{ lead_filters.city }}" placeholder="Cordoba"></label>
           <label>Industria<input name="industry" value="{{ lead_filters.industry }}" placeholder="ferreteria"></label>
           <button type="submit">Aplicar filtros</button>
-          <a class="filter-link" href="/?page=leads&view={{ current_view }}">Limpiar</a>
+          <a class="filter-link" href="/?page={{ current_screen }}&view={{ current_view }}">Limpiar</a>
         </div>
       </form>
 
       <section class="bulk-bar">
         <div>
-          <strong>Campania rapida</strong>
+          <strong>{% if current_screen == 'campaign' %}Acciones de campania{% else %}Campania rapida{% endif %}</strong>
           <div id="selectedCount" class="muted">0 leads seleccionados</div>
         </div>
         <form id="bulkDraftForm" class="bulk-controls">
@@ -247,6 +273,12 @@
             </select>
           </label>
           <button type="submit">Crear drafts</button>
+          {% if current_screen == 'campaign' %}
+          <button class="secondary js-bulk-status" type="button" data-status="contacted">Marcar enviados</button>
+          <button class="secondary js-bulk-status" type="button" data-status="replied">Respondieron</button>
+          <button class="secondary js-bulk-status" type="button" data-status="not_interested">No interesados</button>
+          <button class="secondary js-bulk-status" type="button" data-status="not_fit">No corresponde</button>
+          {% endif %}
           <button id="bulkDelete" class="danger" type="button">Eliminar seleccionados</button>
         </form>
       </section>
@@ -327,11 +359,13 @@
           <label>Mensaje
             <textarea id="draftBody"></textarea>
           </label>
+          <div id="templateNote" class="template-note"></div>
           <div id="draftStatus" class="muted"></div>
         </div>
         <div class="modal-footer">
           <button id="copyDraft" class="secondary" type="button">Copiar</button>
           <button id="saveDraft" class="secondary" type="button">Guardar cambios</button>
+          <button id="sendWhatsapp" type="button">Enviar WhatsApp</button>
           <button id="markSent" type="button">Marcar como enviado</button>
         </div>
       </section>
@@ -364,6 +398,11 @@
       const draftTitle = document.getElementById('draftTitle');
       const draftMeta = document.getElementById('draftMeta');
       const draftStatus = document.getElementById('draftStatus');
+      const sendWhatsappButton = document.getElementById('sendWhatsapp');
+      const saveDraftButton = document.getElementById('saveDraft');
+      const templateNote = document.getElementById('templateNote');
+      let currentDraftRawBody = '';
+      let currentDraftChannel = '';
       const selectedCount = document.getElementById('selectedCount');
       const bulkResults = document.getElementById('bulkResults');
       const bulkMeta = document.getElementById('bulkMeta');
@@ -376,15 +415,39 @@
 
       function openDraft(data) {
         eventIdInput.value = data.event_id;
+        currentDraftRawBody = data.body || '';
+        currentDraftChannel = data.channel || '';
         subjectInput.value = data.subject || '';
-        bodyInput.value = data.body || '';
+        bodyInput.value = displayBody(data.body || '');
         draftTitle.textContent = `Draft para ${data.lead_name || 'lead'}`;
         draftMeta.textContent = `${data.channel} - ${data.step}`;
         draftStatus.textContent = `Estado: ${data.status || 'draft'}`;
         subjectWrap.style.display = data.channel === 'email' ? 'grid' : 'none';
+        sendWhatsappButton.style.display = data.channel === 'whatsapp' ? 'inline-flex' : 'none';
+        saveDraftButton.style.display = data.channel === 'whatsapp' ? 'none' : 'inline-flex';
+        bodyInput.readOnly = data.channel === 'whatsapp';
+        templateNote.style.display = data.channel === 'whatsapp' ? 'block' : 'none';
+        templateNote.textContent = data.channel === 'whatsapp'
+          ? templateSummary(data.body || '')
+          : '';
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
         bodyInput.focus();
+      }
+
+      function displayBody(body) {
+        if (!body.startsWith('WHATSAPP_TEMPLATE_DRAFT')) return body;
+        const marker = 'rendered_message:';
+        const index = body.indexOf(marker);
+        if (index === -1) return body;
+        return body.slice(index + marker.length).trim();
+      }
+
+      function templateSummary(body) {
+        if (!body.startsWith('WHATSAPP_TEMPLATE_DRAFT')) return '';
+        const template = (body.match(/^template_name=(.+)$/m) || [])[1] || 'template';
+        const language = (body.match(/^language=(.+)$/m) || [])[1] || 'language';
+        return `Este mensaje usa un template aprobado de WhatsApp: ${template} (${language}). Por eso no se edita como texto libre; se envia con variables.`;
       }
 
       function closeDraft() {
@@ -398,7 +461,7 @@
 
       function updateSelectedCount() {
         const count = selectedLeadIds().length;
-        selectedCount.textContent = `${count} leads seleccionados`;
+        if (selectedCount) selectedCount.textContent = `${count} leads seleccionados`;
       }
 
       function openBulkResult(data) {
@@ -408,7 +471,7 @@
           const item = document.createElement('div');
           item.className = 'bulk-result';
           const preview = (draft.body || '').replace(/\s+/g, ' ').slice(0, 180);
-          item.innerHTML = `<strong>${draft.lead_name || 'Lead'} · ${draft.channel}</strong><span class="muted">${preview}</span>`;
+          item.innerHTML = `<strong>${draft.lead_name || 'Lead'} - ${draft.channel}</strong><span class="muted">${preview}</span>`;
           bulkResults.appendChild(item);
         });
         if (!data.drafts.length) {
@@ -466,38 +529,44 @@
       document.querySelectorAll('.lead-check').forEach((input) => {
         input.addEventListener('change', updateSelectedCount);
       });
-      document.getElementById('selectAllLeads').addEventListener('change', (event) => {
-        document.querySelectorAll('.lead-check').forEach((input) => {
-          input.checked = event.target.checked;
+      const selectAllLeads = document.getElementById('selectAllLeads');
+      if (selectAllLeads) {
+        selectAllLeads.addEventListener('change', (event) => {
+          document.querySelectorAll('.lead-check').forEach((input) => {
+            input.checked = event.target.checked;
+          });
+          updateSelectedCount();
         });
-        updateSelectedCount();
-      });
+      }
 
-      document.getElementById('bulkDraftForm').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const ids = selectedLeadIds();
-        if (!ids.length) {
-          showToast('Selecciona al menos un lead');
-          return;
-        }
-        const form = event.currentTarget;
-        const button = form.querySelector('button[type="submit"]');
-        const previous = button.textContent;
-        button.disabled = true;
-        button.textContent = 'Creando...';
-        const params = paramsFromForm(form);
-        params.append('lead_ids', ids.join(','));
-        try {
-          const data = await postParams('/api/outreach/bulk', params);
-          openBulkResult(data);
-          showToast(`${data.created} drafts creados`);
-        } catch (error) {
-          showToast('No se pudieron crear drafts');
-        } finally {
-          button.disabled = false;
-          button.textContent = previous;
-        }
-      });
+      const bulkDraftForm = document.getElementById('bulkDraftForm');
+      if (bulkDraftForm) {
+        bulkDraftForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const ids = selectedLeadIds();
+          if (!ids.length) {
+            showToast('Selecciona al menos un lead');
+            return;
+          }
+          const form = event.currentTarget;
+          const button = form.querySelector('button[type="submit"]');
+          const previous = button.textContent;
+          button.disabled = true;
+          button.textContent = 'Creando...';
+          const params = paramsFromForm(form);
+          params.append('lead_ids', ids.join(','));
+          try {
+            const data = await postParams('/api/outreach/bulk', params);
+            openBulkResult(data);
+            showToast(`${data.created} drafts creados`);
+          } catch (error) {
+            showToast('No se pudieron crear drafts');
+          } finally {
+            button.disabled = false;
+            button.textContent = previous;
+          }
+        });
+      }
 
       document.querySelectorAll('.js-delete-lead').forEach((button) => {
         button.addEventListener('click', async () => {
@@ -517,23 +586,46 @@
         });
       });
 
-      document.getElementById('bulkDelete').addEventListener('click', async () => {
-        const ids = selectedLeadIds();
-        if (!ids.length) {
-          showToast('Selecciona al menos un lead');
-          return;
-        }
-        if (!confirm(`Eliminar ${ids.length} leads seleccionados? Tambien se borran sus drafts.`)) return;
-        const params = new URLSearchParams();
-        params.append('lead_ids', ids.join(','));
-        try {
-          const data = await postParams('/api/leads/delete-bulk', params);
-          document.querySelectorAll('.lead-check:checked').forEach((input) => input.closest('tr').remove());
-          updateSelectedCount();
-          showToast(`${data.deleted} leads eliminados`);
-        } catch (error) {
-          showToast('No se pudieron eliminar');
-        }
+      const bulkDelete = document.getElementById('bulkDelete');
+      if (bulkDelete) {
+        bulkDelete.addEventListener('click', async () => {
+          const ids = selectedLeadIds();
+          if (!ids.length) {
+            showToast('Selecciona al menos un lead');
+            return;
+          }
+          if (!confirm(`Eliminar ${ids.length} leads seleccionados? Tambien se borran sus drafts.`)) return;
+          const params = new URLSearchParams();
+          params.append('lead_ids', ids.join(','));
+          try {
+            const data = await postParams('/api/leads/delete-bulk', params);
+            document.querySelectorAll('.lead-check:checked').forEach((input) => input.closest('tr').remove());
+            updateSelectedCount();
+            showToast(`${data.deleted} leads eliminados`);
+          } catch (error) {
+            showToast('No se pudieron eliminar');
+          }
+        });
+      }
+
+      document.querySelectorAll('.js-bulk-status').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const ids = selectedLeadIds();
+          if (!ids.length) {
+            showToast('Selecciona al menos un lead');
+            return;
+          }
+          const params = new URLSearchParams();
+          params.append('lead_ids', ids.join(','));
+          params.append('status', button.dataset.status);
+          try {
+            const data = await postParams('/api/leads/status-bulk', params);
+            showToast(`${data.updated} leads actualizados`);
+            window.setTimeout(() => window.location.reload(), 700);
+          } catch (error) {
+            showToast('No se pudo actualizar el estado');
+          }
+        });
       });
 
       document.getElementById('closeDraft').addEventListener('click', closeDraft);
@@ -554,6 +646,10 @@
       });
 
       document.getElementById('saveDraft').addEventListener('click', async () => {
+        if (currentDraftChannel === 'whatsapp') {
+          showToast('Los templates de WhatsApp no se editan aca');
+          return;
+        }
         const params = new URLSearchParams();
         params.append('subject', subjectInput.value);
         params.append('body', bodyInput.value);
@@ -575,6 +671,34 @@
           showToast('No se pudo marcar enviado');
         }
       });
+
+      sendWhatsappButton.addEventListener('click', async () => {
+        try {
+          sendWhatsappButton.disabled = true;
+          sendWhatsappButton.textContent = 'Enviando...';
+          const data = await postParams(`/api/outreach/${eventIdInput.value}/send-whatsapp`, new URLSearchParams());
+          draftStatus.textContent = `Estado: ${data.status}`;
+          showToast(data.dry_run ? 'Dry-run OK: no se envio' : 'WhatsApp enviado');
+        } catch (error) {
+          showToast('No se pudo enviar por WhatsApp');
+        } finally {
+          sendWhatsappButton.disabled = false;
+          sendWhatsappButton.textContent = 'Enviar WhatsApp';
+        }
+      });
+
+      const discoverLimit = document.getElementById('discoverLimit');
+      const creditEstimate = document.getElementById('creditEstimate');
+      function updateCreditEstimate() {
+        if (!discoverLimit || !creditEstimate) return;
+        const limit = Math.max(1, Math.min(120, Number(discoverLimit.value || 20)));
+        creditEstimate.textContent = String(Math.min(6, Math.ceil(limit / 20)));
+      }
+      if (discoverLimit) {
+        discoverLimit.addEventListener('input', updateCreditEstimate);
+        updateCreditEstimate();
+      }
     </script>
   </body>
 </html>
+
